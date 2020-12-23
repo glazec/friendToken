@@ -60,7 +60,7 @@ contract("CustomERC20TokenV1", (accounts) => {
     assert.equal(afterDestroyingSupply.toString(), '0', 'wrong total supply after Destroying');
     assert.equal(afterDestroyingTotalCollateral.toString(), '0', 'wrong total collateral after Destroying');
     assert.equal(afterDestroyingCollateralOfATU.toString(), '0', 'wrong collateral amount of ATU');
-    assert.equal(afterDestroyingCurrentCollateralRatio.toString(), (1.2 * 10 ** 5).toString(), 'wrong updated collateral ratio after Destroying');
+    assert.equal(afterDestroyingCurrentCollateralRatio.toString(), (0).toString(), 'wrong updated collateral ratio after Destroying');
     assert.equal(afterDestroyingCollateralRatio.toString(), (1.2 * 10 ** 5).toString(), 'wrong collateral ratio in used after Destroying');
   });
 });
