@@ -59,6 +59,7 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
     // The up to date collateral ratio with 5 decimals point
     uint256 private _currentCollateralRatio;
     mapping(address => uint256) private _collateralAmountMap;
+    uint256 private constant _minCollateralRatio = 1.1 * 10**5;
 
     event Casted(
         uint256 friendTokenAmount,
@@ -73,6 +74,13 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
         address sender
     );
     event CurrentCollateralRatio(uint256 currentCollateralRatio);
+    event Rewarded(address recipient,uint256 amount);
+
+    modifier validDestination(address to) {
+        require(to != address(0x0));
+        require(to != address(this));
+        _;
+    }
 
     constructor(
         uint256 initialSupply,
@@ -206,5 +214,18 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
             msg.sender
         );
         emit CurrentCollateralRatio(_currentCollateralRatio);
+    }
+    
+    function rewardDistribution(address recipient, uint256 amount)
+        external
+        validDestination(recipient)
+    {
+        require(
+            _totalCollateral.mul(10**5).div(totalSupply().add(amount)) >
+                _minCollateralRatio,
+            "Too little Collateral"
+        );
+        _mint(recipient, amount);
+        emit Rewarded(recipient, amount);
     }
 }
