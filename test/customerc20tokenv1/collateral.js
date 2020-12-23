@@ -11,7 +11,7 @@ const CustomERC20TokenV1 = artifacts.require("CustomERC20TokenV1");
 contract("CustomERC20TokenV1", (accounts) => {
   it("Correct Collateral Calculation in cast and destroy", async () => {
     const instance = await CustomERC20TokenV1.new(
-      web3.utils.toBN("20000"),
+      web3.utils.toBN("0"),
       "DAEE",
       "EE"
     );
@@ -30,7 +30,7 @@ contract("CustomERC20TokenV1", (accounts) => {
     const beginningCollateralOfATU = await instance.collateralOf(friendToken.address);
     const beginningCurrentCollateralRatio = await instance.currentCollateralRatio();
     const beginningCollateralRatio = await instance.collateralRatio();
-    assert.equal(beginningSupply.toString(), '20000', 'wrong beginning total supply');
+    assert.equal(beginningSupply.toString(), '0', 'wrong beginning total supply');
     assert.equal(beginningTotalCollateral.toString(), '0', 'wrong beginning total collateral');
     assert.equal(beginningCollateralOfATU.toString(), '0', 'wrong collateral amount of ATU');
     assert.equal(beginningCurrentCollateralRatio.toString(), 0, 'wrong updated collateral ratio');
@@ -43,10 +43,10 @@ contract("CustomERC20TokenV1", (accounts) => {
     const afterCastingCollateralOfATU = await instance.collateralOf(friendToken.address);
     const afterCastingCurrentCollateralRatio = await instance.currentCollateralRatio();
     const afterCastingCollateralRatio = await instance.collateralRatio();
-    assert.equal(afterCastingSupply.toString(), '20250', 'wrong total supply after casting');
+    assert.equal(afterCastingSupply.toString(), '250', 'wrong total supply after casting');
     assert.equal(afterCastingTotalCollateral.toString(), '300', 'wrong total collateral after casting');
     assert.equal(afterCastingCollateralOfATU.toString(), '120', 'wrong collateral amount of ATU');
-    assert.equal(afterCastingCurrentCollateralRatio.toNumber(), Math.round(300 / 20250 * 10 ** 5), 'wrong updated collateral ratio after casting');
+    assert.equal(afterCastingCurrentCollateralRatio.toNumber(), Math.round(300 / 250 * 10 ** 5), 'wrong updated collateral ratio after casting');
     assert.equal(afterCastingCollateralRatio.toString(), (1.2 * 10 ** 5).toString(), 'wrong collateral ratio in used after casting');
 
     //destroy
@@ -57,10 +57,10 @@ contract("CustomERC20TokenV1", (accounts) => {
     const afterDestroyingCollateralOfATU = await instance.collateralOf(friendToken.address);
     const afterDestroyingCurrentCollateralRatio = await instance.currentCollateralRatio();
     const afterDestroyingCollateralRatio = await instance.collateralRatio();
-    assert.equal(afterDestroyingSupply.toString(), '20000', 'wrong total supply after Destroying');
+    assert.equal(afterDestroyingSupply.toString(), '0', 'wrong total supply after Destroying');
     assert.equal(afterDestroyingTotalCollateral.toString(), '0', 'wrong total collateral after Destroying');
     assert.equal(afterDestroyingCollateralOfATU.toString(), '0', 'wrong collateral amount of ATU');
-    assert.equal(afterDestroyingCurrentCollateralRatio.toString(), (0), 'wrong updated collateral ratio after Destroying');
+    assert.equal(afterDestroyingCurrentCollateralRatio.toString(), (1.2 * 10 ** 5).toString(), 'wrong updated collateral ratio after Destroying');
     assert.equal(afterDestroyingCollateralRatio.toString(), (1.2 * 10 ** 5).toString(), 'wrong collateral ratio in used after Destroying');
   });
 });

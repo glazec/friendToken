@@ -74,7 +74,8 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
         address sender
     );
     event CurrentCollateralRatio(uint256 currentCollateralRatio);
-    event Rewarded(address recipient,uint256 amount);
+    event Rewarded(address recipient, uint256 amount);
+    event CollateralRatioRebase(uint256 ratio);
 
     modifier validDestination(address to) {
         require(to != address(0x0));
@@ -87,6 +88,7 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
         string memory tokenName,
         string memory tokenSymbol
     ) ERC20(tokenName, tokenSymbol) {
+        console.log(initialSupply);
         // By default is 18 decimals
         _mint(msg.sender, initialSupply);
         _collateralRatio = 1.2 * 10**5;
@@ -185,6 +187,8 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
     }
 
     function destroy(uint256 amount, address addr) external {
+        // use min(_collateralRatio,_currentCollateralRatio) to destroy
+        // use _currentCollateralRatio to destory
         uint256 _allowance = allowance(msg.sender, address(this));
         uint256 _balance = balanceOf(msg.sender);
         require(_allowance >= amount);
@@ -194,28 +198,31 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
         uint256 ratio = _exchangeRatioMap[addr];
         require(
             friendToken.balanceOf(address(this)) >=
-                _collateralRatio.mul(amount).div(ratio)
+                _currentCollateralRatio.mul(amount).div(ratio)
         );
+        console.log(_currentCollateralRatio, totalSupply(), _totalCollateral);
         _burn(msg.sender, amount);
         friendToken.transfer(
             msg.sender,
-            _collateralRatio.mul(amount).div(ratio)
+            _currentCollateralRatio.mul(amount).div(ratio)
         );
         _totalSupply -= amount;
-        _collateralAmountMap[addr] -= _collateralRatio.mul(amount).div(ratio);
-        _totalCollateral -= _collateralRatio.mul(amount).div(10**5);
-        _currentCollateralRatio = _totalCollateral.mul(10**5).div(
-            totalSupply()
+        _collateralAmountMap[addr] -= _currentCollateralRatio.mul(amount).div(
+            ratio
         );
+        _totalCollateral -= _currentCollateralRatio.mul(amount).div(10**5);
+        // _currentCollateralRatio = _totalCollateral.mul(10**5).div(
+        //     totalSupply()
+        // );
         emit Destroyed(
-            _collateralRatio.mul(amount).div(ratio),
+            _currentCollateralRatio.mul(amount).div(ratio),
             amount,
             addr,
             msg.sender
         );
-        emit CurrentCollateralRatio(_currentCollateralRatio);
+        // emit CurrentCollateralRatio(_currentCollateralRatio);
     }
-    
+
     function rewardDistribution(address recipient, uint256 amount)
         external
         validDestination(recipient)
@@ -226,6 +233,14 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
             "Too little Collateral"
         );
         _mint(recipient, amount);
+        _currentCollateralRatio = _totalCollateral.mul(10**5).div(
+            totalSupply()
+        );
         emit Rewarded(recipient, amount);
+    }
+
+    function recaculateCollateralRatio() public {
+        _collateralRatio = 1.2 * 10**5 * 2 - _currentCollateralRatio;
+        emit CollateralRatioRebase(_collateralRatio);
     }
 }

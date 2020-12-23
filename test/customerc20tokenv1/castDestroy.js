@@ -11,7 +11,7 @@ const CustomERC20TokenV1 = artifacts.require("CustomERC20TokenV1");
 contract("CustomERC20TokenV1", (accounts) => {
     it("should cast and destroy coin successfully", async () => {
         const instance = await CustomERC20TokenV1.new(
-            web3.utils.toBN("20000"),
+            0,
             "DAEE",
             "EE"
         );
