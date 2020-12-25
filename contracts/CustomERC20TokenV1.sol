@@ -54,10 +54,13 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
     mapping(address => uint256) private _exchangeRatioMap;
     // The collateral ratio used to caculate collateral with 5 decimals point
     uint256 private _collateralRatio;
-    uint256 private _totalSupply;
     uint256 private _totalCollateral;
     // The up to date collateral ratio with 5 decimals point
     uint256 private _currentCollateralRatio;
+    uint256 private _requireExchangeRatio;
+    bool private _changeExchangeRatioState;
+    address private _changeExchangeRatioAddress;
+    // FRIEND amound
     mapping(address => uint256) private _collateralAmountMap;
     uint256 private constant _minCollateralRatio = 1.1 * 10**5;
 
@@ -76,6 +79,7 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
     event CurrentCollateralRatio(uint256 currentCollateralRatio);
     event Rewarded(address recipient, uint256 amount);
     event CollateralRatioRebase(uint256 ratio);
+    event UpdateExchangeRatio(address addr, uint256 ratio);
 
     modifier validDestination(address to) {
         require(to != address(0x0));
@@ -88,7 +92,6 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
         string memory tokenName,
         string memory tokenSymbol
     ) ERC20(tokenName, tokenSymbol) {
-        console.log(initialSupply);
         // By default is 18 decimals
         _mint(msg.sender, initialSupply);
         _collateralRatio = 1.2 * 10**5;
@@ -153,37 +156,7 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
         require(_acceptedTokenList.contains(addr));
         // check allowance,balance,transfer,mint
         uint256 ratio = _exchangeRatioMap[addr];
-        FriendToken friendToken = FriendToken(addr);
-        uint256 friendAllowance =
-            friendToken.allowance(msg.sender, address(this));
-        uint256 balance = friendToken.balanceOf(msg.sender);
-        require(
-            friendAllowance >= _collateralRatio.mul(amount).div(ratio),
-            "not enough FRIEND Token allowance"
-        );
-        require(
-            balance >= _collateralRatio.mul(amount).div(ratio),
-            "not enough FRIEND Token balance"
-        );
-        friendToken.transferFrom(
-            msg.sender,
-            address(this),
-            _collateralRatio.mul(amount).div(ratio)
-        );
-        _mint(msg.sender, amount);
-        _totalSupply += amount;
-        _collateralAmountMap[addr] += _collateralRatio.mul(amount).div(ratio);
-        _totalCollateral += _collateralRatio.mul(amount).div(10**5);
-        _currentCollateralRatio = _totalCollateral.mul(10**5).div(
-            totalSupply()
-        );
-        emit Casted(
-            _collateralRatio.mul(amount).div(ratio),
-            amount,
-            addr,
-            msg.sender
-        );
-        emit CurrentCollateralRatio(_currentCollateralRatio);
+        _castToken(addr, amount, ratio);
     }
 
     function destroy(uint256 amount, address addr) external {
@@ -191,8 +164,8 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
         // use _currentCollateralRatio to destory
         uint256 token_allowance = allowance(msg.sender, address(this));
         uint256 token_balance = balanceOf(msg.sender);
-        uint256 returnRatio=1.2*10**5;
-        if (_currentCollateralRatio<=1.2*10**5){
+        uint256 returnRatio = 1.2 * 10**5;
+        if (_currentCollateralRatio <= 1.2 * 10**5) {
             returnRatio = _currentCollateralRatio;
         }
         require(token_allowance >= amount);
@@ -205,23 +178,17 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
                 returnRatio.mul(amount).div(ratio)
         );
         _burn(msg.sender, amount);
-        friendToken.transfer(
-            msg.sender,
-            returnRatio.mul(amount).div(ratio)
-        );
-        _totalSupply -= amount;
-        _collateralAmountMap[addr] -= returnRatio.mul(amount).div(
-            ratio
-        );
+        friendToken.transfer(msg.sender, returnRatio.mul(amount).div(ratio));
+        _collateralAmountMap[addr] -= returnRatio.mul(amount).div(ratio);
         _totalCollateral -= returnRatio.mul(amount).div(10**5);
-        if (totalSupply()==0){
-        _currentCollateralRatio = 0;
+        if (totalSupply() == 0) {
+            _currentCollateralRatio = 0;
+        } else {
+            _currentCollateralRatio = _totalCollateral.mul(10**5).div(
+                totalSupply()
+            );
         }
-        else{
-        _currentCollateralRatio = _totalCollateral.mul(10**5).div(
-            totalSupply()
-        );
-        }
+        _recaculateCollateralRatio();
         emit Destroyed(
             returnRatio.mul(amount).div(ratio),
             amount,
@@ -244,14 +211,138 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable {
         _currentCollateralRatio = _totalCollateral.mul(10**5).div(
             totalSupply()
         );
+        _recaculateCollateralRatio();
         emit Rewarded(recipient, amount);
     }
 
-    function recaculateCollateralRatio() public {
+    function _recaculateCollateralRatio() internal {
         _collateralRatio = 1.2 * 10**5 * 2 - _currentCollateralRatio;
-        if (_collateralRatio<1.2*10**5){
-            _collateralRatio = 1.2*10**5;
+        if (_collateralRatio < 1.2 * 10**5 || totalSupply() == 0) {
+            _collateralRatio = 1.2 * 10**5;
         }
         emit CollateralRatioRebase(_collateralRatio);
+    }
+
+    /// @notice change exchangeRatio require to check global currentcollateralRatio
+    function _changeExchangeRatio() internal {
+        require(_checkCollateralRatio(), "Not satisfy prerequisites");
+        _exchangeRatioMap[_changeExchangeRatioAddress] = _exchangeRatioMap[
+            _changeExchangeRatioAddress
+        ]
+            .mul(_requireExchangeRatio)
+            .div(10**5);
+        _totalCollateral =
+            _totalCollateral.mul(10**5).div(_requireExchangeRatio);
+        _currentCollateralRatio = _totalCollateral.mul(10**5).div(totalSupply());
+        _recaculateCollateralRatio();
+        _changeExchangeRatioState = false;
+        emit UpdateExchangeRatio(
+            _changeExchangeRatioAddress,
+            _requireExchangeRatio
+        );
+    }
+
+    function requireChangeExchangeRatio(address addr, uint256 ratio)
+        external
+        onlyOwner
+    {
+        require(
+            _changeExchangeRatioState == false,
+            "Yor are already changing exchange ratio"
+        );
+        _requireExchangeRatio = ratio;
+        _changeExchangeRatioState = true;
+        _changeExchangeRatioAddress = addr;
+        if (_checkCollateralRatio()) {
+            _changeExchangeRatio();
+        }
+    }
+
+    function cancelRequireChangeExchangeRatio() public onlyOwner {
+        require(_changeExchangeRatioState == true, "No ongoing changes");
+        _changeExchangeRatioState = false;
+    }
+
+    function stake(address addr, uint256 amount) external {
+        require(_changeExchangeRatioState,'You are not changing exchange ratio');
+        uint256 ratio =
+            _requireExchangeRatio
+                .mul(_exchangeRatioMap[addr])
+                .mul(0.98 * 10**5)
+                .div(10**10);
+        console.log(ratio);
+        console.log('Before stake',_currentCollateralRatio);
+        _castToken(addr, amount, ratio);
+        console.log('current collateral ratio',_currentCollateralRatio);
+        console.log('if increase exchange ratio, the current collateral ratio is',_currentCollateralRatio.mul(10**5).div(_requireExchangeRatio));
+        console.log(_collateralAmountMap[addr].mul(10**5).mul(_exchangeRatioMap[addr]).div(_requireExchangeRatio).div(totalSupply()));
+        if (_checkCollateralRatio()) {
+            _changeExchangeRatio();
+        }
+    }
+
+    ///@notice This is used as the prerequisites for changing exchange ratio
+    function _checkCollateralRatio() internal view returns (bool) {
+        if (_requireExchangeRatio >= 1 * 10**5) {
+            if (
+                _currentCollateralRatio.mul(10**5).div(_requireExchangeRatio) >
+                1.1 * 10**5
+            ) {
+                return true;
+            }
+        } else if (_requireExchangeRatio < 1 * 10**5) {
+            if (
+                _currentCollateralRatio.mul(10**5).div(_requireExchangeRatio) <
+                1.3 * 10**5 
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function _castToken(
+        address addr,
+        uint256 amount,
+        uint256 ratio
+    ) internal returns (bool) {
+        FriendToken friendToken = FriendToken(addr);
+        uint256 friendAllowance =
+            friendToken.allowance(msg.sender, address(this));
+        uint256 balance = friendToken.balanceOf(msg.sender);
+        require(
+            friendAllowance >= _collateralRatio.mul(amount).div(ratio),
+            "not enough FRIEND Token allowance"
+        );
+        require(
+            balance >= _collateralRatio.mul(amount).div(ratio),
+            "not enough FRIEND Token balance"
+        );
+        friendToken.transferFrom(
+            msg.sender,
+            address(this),
+            _collateralRatio.mul(amount).div(ratio)
+        );
+        _mint(msg.sender, amount);
+        _collateralAmountMap[addr] += _collateralRatio.mul(amount).div(ratio);
+        if (_changeExchangeRatioState){
+            _totalCollateral += _collateralRatio.mul(amount).mul(_requireExchangeRatio).div(10**5).mul(ratio).div(10**10);
+        }
+        else{
+        _totalCollateral += _collateralRatio.mul(amount).div(10**5);
+        }
+        _currentCollateralRatio = _totalCollateral.mul(10**5).div(
+            totalSupply()
+        );
+        _recaculateCollateralRatio();
+        // console.log('overflow','_collateralRatio);
+        emit Casted(
+            _collateralRatio.mul(amount).div(ratio),
+            amount,
+            addr,
+            msg.sender
+        );
+        emit CurrentCollateralRatio(_currentCollateralRatio);
+        return true;
     }
 }
