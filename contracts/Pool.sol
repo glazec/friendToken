@@ -40,7 +40,7 @@ interface FriendToken {
         returns (bool);
 }
 
-contract Pool {
+contract Pool is Ownable {
     // emit event
     // modify view and pure
     using SafeMath for uint256;
@@ -63,9 +63,13 @@ contract Pool {
     bool private _deprecated;
     FriendToken private _friendToken;
 
-    constructor(address acceptedTokenAddr, uint256 exchangeRatio) {
+    constructor(
+        address acceptedTokenAddr,
+        uint256 initExchangeRatio,
+        address ownerAddr
+    ) {
         _acceptedTokenAddr = acceptedTokenAddr;
-        _exchangeRatio = exchangeRatio;
+        _exchangeRatio = initExchangeRatio;
         _targetCollateralRatio = 1.2 * 10**5;
         _targetMinCollateralRatio = 1.1 * 10**5;
         _targetMaxCollateralRatio = 1.3 * 10**5;
@@ -75,9 +79,32 @@ contract Pool {
         _totalTokenAmount = 0;
         _personalToken = PersonalToken(msg.sender);
         _deprecated = false;
+        _friendToken = FriendToken(acceptedTokenAddr);
+        _currentCollateralRatio = _targetCollateralRatio;
+        transferOwnership(ownerAddr);
     }
 
-    function cancleChangeExchangeRatio() external returns (bool) {
+    function getRequireExchangeRatio() external view returns (uint256) {
+        return _requireExchangeRatio;
+    }
+
+    function deprecated() external view returns (bool) {
+        return _deprecated;
+    }
+
+    function useCollateralRatio() external view returns (uint256) {
+        return _useCollateralRatio;
+    }
+
+    function currentCollateralRatio() external view returns (uint256) {
+        return _currentCollateralRatio;
+    }
+
+    function exchangeRatio() external view returns (uint256) {
+        return _exchangeRatio;
+    }
+
+    function cancelChangeExchangeRatio() external onlyOwner returns (bool) {
         require(
             _requireChangeExchangeRatio,
             "not require change exchange ratio"
@@ -86,7 +113,7 @@ contract Pool {
         return true;
     }
 
-    function deprecateToggle() external {
+    function deprecateToggle() external onlyOwner {
         _deprecated = !_deprecated;
     }
 
@@ -95,6 +122,7 @@ contract Pool {
         uint256 friendAmount =
             _tokenToFriend(tokenAmount, _exchangeRatio, _useCollateralRatio);
         _castToken(friendAmount, tokenAmount);
+        return true;
     }
 
     function destroy(uint256 tokenAmount) external returns (bool) {
@@ -138,6 +166,7 @@ contract Pool {
 
     function requireChangeExchangeRatio(uint256 requireExchangeRatio)
         external
+        onlyOwner
         returns (bool)
     {
         require(
@@ -155,6 +184,7 @@ contract Pool {
 
     function rewardDistribute(address recipient, uint256 tokenAmount)
         external
+        onlyOwner
         returns (bool)
     {
         _personalToken.mint(recipient, tokenAmount);
@@ -220,10 +250,13 @@ contract Pool {
     }
 
     function _updateCollateral() internal returns (bool) {
-        _currentCollateralRatio = _friendTokenAmount
-            .mul(_exchangeRatio)
-            .mul(10**5)
-            .div(_totalTokenAmount);
+        if (_friendTokenAmount == 0) {
+            _currentCollateralRatio = _targetCollateralRatio;
+        } else {
+            _currentCollateralRatio = _friendTokenAmount
+                .mul(_exchangeRatio)
+                .div(_totalTokenAmount);
+        }
         require(
             _currentCollateralRatio >= _targetMinCollateralRatio,
             "too little collateral"
@@ -231,23 +264,31 @@ contract Pool {
         _useCollateralRatio = _recaculateUseCollateralRatio(
             _currentCollateralRatio
         );
+        return true;
     }
 
-    /// library
-    function _recaculateUseCollateralRatio(uint256 currentCollateralRatio)
+    /// @param ccr current collateral ratio
+    function _recaculateUseCollateralRatio(uint256 ccr)
         internal
         view
-        returns (uint256 useCollateralRatio)
+        returns (uint256)
     {
+        uint256 newCollateralRatio;
         if (_totalTokenAmount == 0) {
-            return _targetCollateralRatio;
+            newCollateralRatio = _targetCollateralRatio;
         } else {
-            return _targetCollateralRatio.mul(2).sub(currentCollateralRatio);
+            newCollateralRatio = _targetCollateralRatio.mul(2).sub(ccr);
         }
+        if (newCollateralRatio < _targetCollateralRatio) {
+            newCollateralRatio = _targetCollateralRatio;
+        }
+        return newCollateralRatio;
     }
 
     function _changeExchangeRatio() internal returns (bool) {
+        _requireChangeExchangeRatio = false;
         _exchangeRatio = _requireExchangeRatio;
+        _requireExchangeRatio = 0;
         _updateCollateral();
         return true;
     }

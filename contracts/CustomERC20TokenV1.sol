@@ -32,8 +32,8 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable, AccessControl {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     //use EnumerateSet Openzeppelin
-    EnumerableSet.AddressSet private _pool;
-    EnumerableSet.AddressSet private _acceptedTokenAddrArray;
+    EnumerableSet.AddressSet private _poolAddrSet;
+    EnumerableSet.AddressSet private _acceptedTokenAddrSet;
     bytes32 public constant POOL_ROLE = keccak256("POOL_ROLE");
 
     event Casted(
@@ -56,11 +56,7 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable, AccessControl {
     modifier validDestination(address to) {
         require(to != address(0x0));
         require(to != address(this));
-        _;
-    }
-
-    modifier onlyPool(address addr) {
-        require(_pool.contains(addr));
+        require(!_poolAddrSet.contains(to));
         _;
     }
 
@@ -74,26 +70,45 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable, AccessControl {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function mint(address addr, uint256 amount) public returns (bool) {
-        require(hasRole(POOL_ROLE, msg.sender), "Caller is not a minter");
+    function pool() external view returns (address[] memory) {
+        uint256 tokenListLength = _poolAddrSet.length();
+        address[] memory _addr = new address[](tokenListLength);
+        for (uint256 i = 0; i < _poolAddrSet.length(); i++) {
+            _addr[i] = _poolAddrSet.at(i);
+        }
+        return _addr;
+    }
+
+    function mint(address addr, uint256 amount)
+        public
+        validDestination(addr)
+        returns (bool)
+    {
+        require(hasRole(POOL_ROLE, msg.sender), "Caller is not a pool");
         _mint(addr, amount);
         return true;
     }
 
-    function burn(address addr, uint256 amount) external returns (bool) {
-        require(hasRole(POOL_ROLE, msg.sender), "Caller is not a minter");
+    function burn(address addr, uint256 amount)
+        external
+        validDestination(addr)
+        returns (bool)
+    {
+        require(hasRole(POOL_ROLE, msg.sender), "Caller is not a pool");
         _burn(addr, amount);
+        return true;
     }
 
     function createPool(address friendTokenAddr, uint256 exchangeRatio)
         external
+        validDestination(friendTokenAddr)
         onlyOwner
-        returns (bool)
+        returns (address)
     {
-        Pool newPool = new Pool(friendTokenAddr, exchangeRatio);
-        _pool.add(address(newPool));
-        _acceptedTokenAddrArray.add(friendTokenAddr);
+        Pool newPool = new Pool(friendTokenAddr, exchangeRatio, msg.sender);
+        _poolAddrSet.add(address(newPool));
+        _acceptedTokenAddrSet.add(friendTokenAddr);
         grantRole(POOL_ROLE, address(newPool));
-        return true;
+        return address(newPool);
     }
 }
