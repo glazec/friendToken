@@ -9,7 +9,8 @@
   "scripts": {
     "test": "npx hardhat test",
     "doc": "npx solidity-docgen --solc-module solc-0.7",
-    "coverage": "npx hardhat coverage --solcoverjs .\\solcover.js"
+    "coverage": "npx hardhat coverage --solcoverjs .\\solcover.js",
+    "analyze": "slither ./"
   },
   "author": "",
   "license": "ISC",
