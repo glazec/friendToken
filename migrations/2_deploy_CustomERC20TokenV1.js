@@ -6,7 +6,7 @@ module.exports = function (deployer) {
   //   deployer.link(ERC20, GLDToken);
   deployer.deploy(
     CustomERC20TokenV1,
-    web3.utils.toBN("20000"),
+    web3.utils.toBN("0"),
     "DAEE",
     "EE"
   );
