@@ -59,12 +59,11 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable, AccessControl {
         require(!_poolAddrSet.contains(to));
         _;
     }
-
     constructor(
         uint256 initialSupply,
         string memory tokenName,
         string memory tokenSymbol
-    ) ERC20(tokenName, tokenSymbol) {
+    ) ERC20(tokenName, tokenSymbol) public {
         // By default is 18 decimals
         _mint(msg.sender, initialSupply);
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -73,14 +72,14 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable, AccessControl {
     function pool() external view returns (address[] memory) {
         uint256 tokenListLength = _poolAddrSet.length();
         address[] memory _addr = new address[](tokenListLength);
-        for (uint256 i = 0; i < _poolAddrSet.length(); i++) {
+        for (uint256 i = 0; i < tokenListLength; i++) {
             _addr[i] = _poolAddrSet.at(i);
         }
         return _addr;
     }
 
     function mint(address addr, uint256 amount)
-        public
+        external
         validDestination(addr)
         returns (bool)
     {

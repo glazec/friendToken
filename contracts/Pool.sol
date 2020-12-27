@@ -67,7 +67,7 @@ contract Pool is Ownable {
         address acceptedTokenAddr,
         uint256 initExchangeRatio,
         address ownerAddr
-    ) {
+    ) public {
         _acceptedTokenAddr = acceptedTokenAddr;
         _exchangeRatio = initExchangeRatio;
         _targetCollateralRatio = 1.2 * 10**5;
