@@ -63,11 +63,17 @@ contract Pool is Ownable {
     bool private _deprecated;
     FriendToken private _friendToken;
 
+    modifier validDestination(address to) {
+        require(to != address(0x0));
+        require(to != address(this));
+        _;
+    }
+
     constructor(
         address acceptedTokenAddr,
         uint256 initExchangeRatio,
         address ownerAddr
-    ) public {
+    ) public validDestination(acceptedTokenAddr){
         _acceptedTokenAddr = acceptedTokenAddr;
         _exchangeRatio = initExchangeRatio;
         _targetCollateralRatio = 1.2 * 10**5;
@@ -187,9 +193,9 @@ contract Pool is Ownable {
         onlyOwner
         returns (bool)
     {
-        _personalToken.mint(recipient, tokenAmount);
         _updateTokenAmount(0, tokenAmount, 1);
         _updateCollateral();
+        _personalToken.mint(recipient, tokenAmount);
         return true;
     }
 
@@ -210,10 +216,10 @@ contract Pool is Ownable {
             friendBalance >= friendAmount,
             "not enough FRIEND Token balance"
         );
-        _friendToken.transferFrom(msg.sender, address(this), friendAmount);
-        _personalToken.mint(msg.sender, tokenAmount);
         _updateTokenAmount(friendAmount, tokenAmount, 1);
         _updateCollateral();
+        _friendToken.transferFrom(msg.sender, address(this), friendAmount);
+        _personalToken.mint(msg.sender, tokenAmount);
         return true;
     }
 
@@ -226,10 +232,10 @@ contract Pool is Ownable {
         uint256 tokenBalance = _personalToken.balanceOf(msg.sender);
         require(tokenBalance >= tokenAmount, "not enough Token allowance");
         require(tokenAllowance >= tokenAmount, "not enough Token balance");
-        _personalToken.burn(msg.sender, tokenAmount);
-        _friendToken.transfer(msg.sender, friendAmount);
         _updateTokenAmount(friendAmount, tokenAmount, 0);
         _updateCollateral();
+        _personalToken.burn(msg.sender, tokenAmount);
+        _friendToken.transfer(msg.sender, friendAmount);
         return true;
     }
 
@@ -299,7 +305,7 @@ contract Pool is Ownable {
         uint256 tokenAmount,
         uint256 exchangRatio,
         uint256 collateralRatio
-    ) internal pure returns (uint256 friendAmount) {
+    ) internal pure returns (uint256) {
         return collateralRatio.mul(tokenAmount).div(exchangRatio);
     }
 }
