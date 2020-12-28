@@ -150,7 +150,7 @@ contract Pool is Ownable {
         return true;
     }
 
-    function requireChangeExchangeRatio(uint256 requireRatio)
+    function requestChangeExchangeRatio(uint256 requireRatio)
         external
         onlyOwner
         returns (bool)
@@ -239,9 +239,9 @@ contract Pool is Ownable {
         if (_friendTokenAmount == 0) {
             currentCollateralRatio = _targetCollateralRatio;
         } else {
-            currentCollateralRatio = _friendTokenAmount
-                .mul(exchangeRatio)
-                .div(_totalTokenAmount);
+            currentCollateralRatio = _friendTokenAmount.mul(exchangeRatio).div(
+                _totalTokenAmount
+            );
         }
         require(
             currentCollateralRatio >= _targetMinCollateralRatio,

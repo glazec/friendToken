@@ -29,7 +29,7 @@ contract("CustomERC20TokenV1", (accounts) => {
         await pool.cast(25);
         truffleAssert.reverts(pool.stake(20));
         //require change
-        await pool.requireChangeExchangeRatio(web3.utils.toBN(2 * 10 ** 5));
+        await pool.requestChangeExchangeRatio(web3.utils.toBN(2 * 10 ** 5));
         await pool.stake(50);
         const endingExchangeRatio = await pool.exchangeRatio();
         assert.equal(endingExchangeRatio.toNumber(), 2 * 10 ** 5, 'Not updating exchange ratio');
