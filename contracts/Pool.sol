@@ -71,8 +71,7 @@ contract Pool is Ownable {
 
     constructor(
         address acceptedTokenAddr,
-        uint256 initExchangeRatio,
-        address ownerAddr
+        uint256 initExchangeRatio
     ) public validDestination(acceptedTokenAddr) {
         _acceptedTokenAddr = acceptedTokenAddr;
         exchangeRatio = initExchangeRatio;
@@ -87,7 +86,6 @@ contract Pool is Ownable {
         deprecated = false;
         _friendToken = FriendToken(acceptedTokenAddr);
         currentCollateralRatio = _targetCollateralRatio;
-        transferOwnership(ownerAddr);
     }
 
     function cancelChangeExchangeRatio() external onlyOwner returns (bool) {

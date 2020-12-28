@@ -59,11 +59,12 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable, AccessControl {
         require(!_poolAddrSet.contains(to));
         _;
     }
+
     constructor(
         uint256 initialSupply,
         string memory tokenName,
         string memory tokenSymbol
-    ) ERC20(tokenName, tokenSymbol) public {
+    ) public ERC20(tokenName, tokenSymbol) {
         // By default is 18 decimals
         _mint(msg.sender, initialSupply);
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -104,7 +105,8 @@ contract CustomERC20TokenV1 is ERC20, ERC20Burnable, Ownable, AccessControl {
         onlyOwner
         returns (address)
     {
-        Pool newPool = new Pool(friendTokenAddr, exchangeRatio, msg.sender);
+        Pool newPool = new Pool(friendTokenAddr, exchangeRatio);
+        newPool.transferOwnership(msg.sender);
         _poolAddrSet.add(address(newPool));
         _acceptedTokenAddrSet.add(friendTokenAddr);
         grantRole(POOL_ROLE, address(newPool));
