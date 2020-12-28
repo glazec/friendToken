@@ -34,7 +34,7 @@ contract("CustomERC20TokenV1", (accounts) => {
         const endingExchangeRatio = await pool.exchangeRatio();
         assert.equal(endingExchangeRatio.toNumber(), 2 * 10 ** 5, 'Not updating exchange ratio');
         truffleAssert.reverts(pool.cancelChangeExchangeRatio());
-        assert.equal((await pool.getRequireExchangeRatio()).toNumber(), 0)
+        assert.equal((await pool.candidateExchangeRatio()).toNumber(), 0)
         // console.log((await pool.currentCollateralRatio()).toNumber())
         // console.log((await pool.useCollateralRatio()).toNumber())
 

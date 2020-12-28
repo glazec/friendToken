@@ -55,7 +55,7 @@ contract Pool is Ownable {
     uint256 public useCollateralRatio;
     bool private _changeExchangeRatioRequest;
     // the new candiate exchange ratio
-    uint256 private _requireExchangeRatio;
+    uint256 public candidateExchangeRatio;
     uint256 private _friendTokenAmount;
     uint256 private _totalTokenAmount;
     uint256 public currentCollateralRatio;
@@ -89,11 +89,6 @@ contract Pool is Ownable {
         currentCollateralRatio = _targetCollateralRatio;
         transferOwnership(ownerAddr);
     }
-
-    function getRequireExchangeRatio() external view returns (uint256) {
-        return _requireExchangeRatio;
-    }
-
 
     function cancelChangeExchangeRatio() external onlyOwner returns (bool) {
         require(
@@ -131,21 +126,21 @@ contract Pool is Ownable {
         uint256 friendAmount =
             _tokenToFriend(
                 tokenAmount,
-                _requireExchangeRatio,
+                candidateExchangeRatio,
                 useCollateralRatio
             );
         _castToken(friendAmount, tokenAmount);
-        if (_requireExchangeRatio > exchangeRatio) {
+        if (candidateExchangeRatio > exchangeRatio) {
             if (
-                _friendTokenAmount.mul(_requireExchangeRatio).div(
+                _friendTokenAmount.mul(candidateExchangeRatio).div(
                     _totalTokenAmount
                 ) <= _targetMaxCollateralRatio
             ) {
                 _changeExchangeRatio();
             }
-        } else if (_requireExchangeRatio < exchangeRatio) {
+        } else if (candidateExchangeRatio < exchangeRatio) {
             if (
-                _friendTokenAmount.mul(_requireExchangeRatio).div(
+                _friendTokenAmount.mul(candidateExchangeRatio).div(
                     _totalTokenAmount
                 ) >= _targetMinCollateralRatio
             ) {
@@ -169,7 +164,7 @@ contract Pool is Ownable {
             "cannot set the same exchange ratio"
         );
         _changeExchangeRatioRequest = true;
-        _requireExchangeRatio = requireRatio;
+        candidateExchangeRatio = requireRatio;
         return true;
     }
 
@@ -278,8 +273,8 @@ contract Pool is Ownable {
 
     function _changeExchangeRatio() internal returns (bool) {
         _changeExchangeRatioRequest = false;
-        exchangeRatio = _requireExchangeRatio;
-        _requireExchangeRatio = 0;
+        exchangeRatio = candidateExchangeRatio;
+        candidateExchangeRatio = 0;
         _updateCollateral();
         return true;
     }
