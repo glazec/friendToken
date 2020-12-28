@@ -73,7 +73,7 @@ contract Pool is Ownable {
         address acceptedTokenAddr,
         uint256 initExchangeRatio,
         address ownerAddr
-    ) public validDestination(acceptedTokenAddr){
+    ) public validDestination(acceptedTokenAddr) {
         _acceptedTokenAddr = acceptedTokenAddr;
         _exchangeRatio = initExchangeRatio;
         _targetCollateralRatio = 1.2 * 10**5;
